@@ -55,15 +55,15 @@ purge_tree() {
     if [[ "$res" == "dirs" ]]; then
       continue
     elif [[ "$res" == "files" ]]; then
-        continue
+      continue
     elif [[ "$res" == "parents" ]]; then
-        purge_tree "$item"
+      purge_tree "$item"
     else
-        if (( debug )); then
-          echo "Removing undeclared path: $item"
-        fi
-        rm -rf "$item"
+      if (( debug )); then
+        echo "Removing undeclared path: $item"
       fi
+      rm -rf "$item"
+    fi
   done
 }
 
