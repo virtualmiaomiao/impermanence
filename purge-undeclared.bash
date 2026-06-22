@@ -75,7 +75,7 @@ purge_tree() {
         if (( debug )); then
           echo "Removing undeclared path: $item"
         fi
-        # rm -rf "$item"
+        rm -rf "$item"
       fi
   done
 }
