@@ -9,14 +9,17 @@ shopt -s nullglob dotglob
 
 trap 'echo Error when executing ${BASH_COMMAND} at line ${LINENO}! >&2' ERR
 
-if [[ $# -lt 2 ]]; then
-  echo "Error: 'purge-undeclared.bash' requires at least two args: baseDir and debug." >&2
+if [[ $# -lt 3 ]]; then
+  echo "Error: 'purge-undeclared.bash' requires at least three args: baseDir,debug,currentConfigHash ." >&2
   exit 1
 fi
 
 baseDir="$1"
 debug="$2"
-shift 2
+currentConfigHash="$3"
+shift 3
+
+lockFile="${baseDir}/.impermanence-purge-cache.lock"
 
 if (( debug )); then
   set -o xtrace
@@ -24,6 +27,16 @@ fi
 
 if [[ ! -d "$baseDir" ]]; then
   exit 0
+fi
+
+if [[ -f "$lockFile" ]]; then
+  read -r lastHash < "$lockFile"
+  if [[ "$lastHash" == "$currentConfigHash" ]]; then
+    if (( debug )); then
+      echo "Impermanence: Configuration unchanged. Skipping purge."
+    fi
+    exit 0
+  fi
 fi
 
 echo "Impermanence: Purging undeclared files and directories in $baseDir..."
@@ -41,33 +54,31 @@ for arg in "$@"; do
       allowed_paths["$arg"]="$current_type"
     fi
   fi
-
 done
+
 purge_tree() {
   local parent="$1"
   local item
+  local res
 
   for item in "$parent"/*; do
     [[ "${item##*/}" == "." || "${item##*/}" == ".." ]] && continue
 
-    case "${allowed_paths[$item]:-}" in
-      "dirs")
+    res="${allowed_paths[$item]:-}"
+    if [[ "$res" == "dirs" ]]; then
+      continue
+    elif [[ "$res" == "files" ]]; then
         continue
-        ;;
-      "files")
-        continue
-        ;;
-      "parents")
+    elif [[ "$res" == "parents" ]]; then
         purge_tree "$item"
-        ;;
-      *)
+    else
         if (( debug )); then
           echo "Removing undeclared path: $item"
         fi
         # rm -rf "$item"
-        ;;
-    esac
+      fi
   done
 }
 
 purge_tree "$baseDir"
+echo "$currentConfigHash" > "$lockFile"

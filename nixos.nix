@@ -496,9 +496,14 @@ in
                     pureDirs = unique (sysDirs ++ usersDirs ++ hmDirs);
                     pureFiles = unique (sysFiles ++ usersFiles ++ hmFiles);
                     pureParents = unique (concatMap parentsOf (pureDirs ++ pureFiles));
+                    allPaths = pureDirs ++ pureFiles ++ pureParents;
+                    sortedPath = builtins.sort (a: b: a < b) allPaths;
+
+                    configManifest = concatStringsSep "\n" sortedPath;
+                    currentConfigHash = builtins.hashString "sha256" configManifest;
 
                     debugArg = if v.enableDebugging then "1" else "0";
-                    args = [ base debugArg ] ++ [ "--dirs" ] ++ pureDirs ++ [ "--files" ] ++ pureFiles ++ [ "--parents" ] ++ pureParents;
+                    args = [ base debugArg currentConfigHash ] ++ [ "--dirs" ] ++ pureDirs ++ [ "--files" ] ++ pureFiles ++ [ "--parents" ] ++ pureParents;
                   in
                     ''
                     ${purgeUndeclaredScript} ${escapeShellArgs args}
