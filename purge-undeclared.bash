@@ -10,16 +10,13 @@ shopt -s nullglob dotglob
 trap 'echo Error when executing ${BASH_COMMAND} at line ${LINENO}! >&2' ERR
 
 if [[ $# -lt 3 ]]; then
-  echo "Error: 'purge-undeclared.bash' requires at least three args: baseDir,debug,currentConfigHash ." >&2
+  echo "Error: 'purge-undeclared.bash' requires at least 2 args: baseDir,debug." >&2
   exit 1
 fi
 
 baseDir="$1"
 debug="$2"
-currentConfigHash="$3"
-shift 3
-
-lockFile="${baseDir}/.impermanence-purge-cache.lock"
+shift 2
 
 if (( debug )); then
   set -o xtrace
@@ -27,16 +24,6 @@ fi
 
 if [[ ! -d "$baseDir" ]]; then
   exit 0
-fi
-
-if [[ -f "$lockFile" ]]; then
-  read -r lastHash < "$lockFile"
-  if [[ "$lastHash" == "$currentConfigHash" ]]; then
-    if (( debug )); then
-      echo "Impermanence: Configuration unchanged. Skipping purge."
-    fi
-    exit 0
-  fi
 fi
 
 echo "Impermanence: Purging undeclared files and directories in $baseDir..."
@@ -81,4 +68,3 @@ purge_tree() {
 }
 
 purge_tree "$baseDir"
-echo "$currentConfigHash" > "$lockFile"
