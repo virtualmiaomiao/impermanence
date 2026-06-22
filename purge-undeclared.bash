@@ -5,6 +5,7 @@ set -o errexit            # Exit on command failure.
 set -o pipefail           # Exit on failure of any command in a pipeline.
 set -o errtrace           # Trap errors in functions and subshells.
 shopt -s inherit_errexit  # Inherit the errexit option status in subshells.
+shopt -s nullglob dotglob
 
 trap 'echo Error when executing ${BASH_COMMAND} at line ${LINENO}! >&2' ERR
 
@@ -28,21 +29,45 @@ fi
 echo "Impermanence: Purging undeclared files and directories in $baseDir..."
 
 declare -A allowed_paths
-allowed_paths["$baseDir"]=1
 
-for path in "$@"; do
-  allowed_paths["$path"]=1
-done
-
-while IFS= read -r -d $'\0' item; do
-  if [[ "$item" == "$baseDir" ]]; then
+current_type=""
+for arg in "$@"; do
+  if [[ "$arg" == "--dirs" || "$arg" == "--files" || "$arg" == "--parents" ]]; then
+    current_type="${arg#--}"
     continue
   fi
-  
-  if [[ -z "${allowed_paths["$item"]:-}" ]]; then
-    if (( debug )); then 
-      echo "Removing undeclared path: $item"
+  if [[ -n "$current_type" ]]; then
+    if [[ "${allowed_paths[$arg]:-}" != "dirs" ]]; then
+      allowed_paths["$arg"]="$current_type"
     fi
-    #rm -rf "$item"
   fi
-done < <(find "$baseDir" -depth -mindepth 1 -print0)
+
+done
+purge_tree() {
+  local parent="$1"
+  local item
+
+  for item in "$parent"/*; do
+    [[ "${item##*/}" == "." || "${item##*/}" == ".." ]] && continue
+
+    case "${allowed_paths[$item]:-}" in
+      "dirs")
+        continue
+        ;;
+      "files")
+        continue
+        ;;
+      "parents")
+        purge_tree "$item"
+        ;;
+      *)
+        if (( debug )); then
+          echo "Removing undeclared path: $item"
+        fi
+        # rm -rf "$item"
+        ;;
+    esac
+  done
+}
+
+purge_tree "$baseDir"
