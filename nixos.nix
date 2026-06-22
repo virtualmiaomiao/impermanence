@@ -468,15 +468,47 @@ in
                     ${concatMapStrings mkPersistFile files}
                     exit $_status
                   '';
+
+                purgeUndeclaredScript = pkgs.runCommand "persistence-purge-undeclared" { buildInputs = [ pkgs.bash ]; } ''
+                  cp ${./purge-undeclared.bash} $out
+                  patchShebangs $out
+                '';
+
+                purgeConfigs = filterAttrs (_: v: v.purageUndeclaredFiles && v.enable) cfg;
+
+                mkPurgeCmdForBlock = name: v:
+                  let
+                    base = v.persistentStoragePath;
+
+                    sysDirs = map (d: concatPaths [ base d.dirPath ]) v.directories;
+                    sysFiles = map (f: concatPaths [base f.filePath ]) v.files;
+
+                    usersDirs = concatMap (u: map (d: concatPaths [ base d.dirPath ]) u.directories) (attrValues v.users);
+                    usersFiles = concatMap (u: map (f: concatPaths [ base f.filePath ]) u.files) (attrValues v.users);
+
+                    allExplicitPaths = sysDirs ++ sysFiles ++ usersDirs ++ usersFiles;
+                    allAllowedPaths = unique (allExplicitPaths ++ concatMap parentsOf allExplicitPaths);
+
+                    debugArg = if v.enableDebugging then "1" else "0";
+                    args = [ base debugArg ] ++ allAllowedPaths;
+                  in
+                    ''
+                    ${purgeUndeclaredScript} ${escapeShellArgs args}
+                    '';
+                purgeScript = concatMapStrings (name: mkPurgeCmdForBlock name cfg.${name}) (attrNames purgeConfigs);
               in
               {
                 "createPersistentStorageDirs" = {
-                  deps = [ "users" "groups" ];
+                  deps = [ "users" "groups" "purgeUndeclaredFiles" ];
                   text = "${dirCreationScript}";
                 };
                 "persist-files" = {
                   deps = [ "createPersistentStorageDirs" ];
                   text = "${persistFileScript}";
+                };
+                "purgeUndeclaredFiles" = {
+                  deps = [ "users" "groups" ];
+                  text = purgeScript;
                 };
               };
 
