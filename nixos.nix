@@ -474,7 +474,7 @@ in
                   patchShebangs $out
                 '';
 
-                purgeConfigs = filterAttrs (_: v: v.purageUndeclaredFiles && v.enable) cfg;
+                purgeConfigs = filterAttrs (_: v: v.purgeUndeclaredFiles && v.enable) cfg;
 
                 mkPurgeCmdForBlock = name: v:
                   let
