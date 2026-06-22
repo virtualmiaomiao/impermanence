@@ -498,7 +498,7 @@ in
                     pureParents = unique (concatMap parentsOf (pureDirs ++ pureFiles));
 
                     debugArg = if v.enableDebugging then "1" else "0";
-                    args = [ base debugArg ] ++ [ "--dirs" ] ++ pureDirs ++ [ "files" ] ++ pureFiles ++ [ "--parents" ] ++ pureParents;
+                    args = [ base debugArg ] ++ [ "--dirs" ] ++ pureDirs ++ [ "--files" ] ++ pureFiles ++ [ "--parents" ] ++ pureParents;
                   in
                     ''
                     ${purgeUndeclaredScript} ${escapeShellArgs args}
